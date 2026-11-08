@@ -75,7 +75,16 @@
   .time-card:hover { transform: translateY(-4px); border-color: var(--border-hi); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
   .time-card .icon { font-size: 24px; margin-bottom: 12px; display: block; }
   .time-card .label { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500; }
-  .time-card .val { font-family: var(--font-mono); font-size: 20px; font-weight: 700; }
+  
+  /* ИСПРАВЛЕНИЕ: защита от длинных чисел */
+  .time-card .val { 
+      font-family: var(--font-mono); 
+      font-size: 18px; 
+      font-weight: 700; 
+      word-break: break-word; 
+      overflow-wrap: anywhere;
+  }
+  
   .time-card.online { border-top: 3px solid var(--red); } .time-card.online .val { color: var(--red); }
   .time-card.offline { border-top: 3px solid var(--amber); } .time-card.offline .val { color: var(--amber); }
   .time-card.quantum { border-top: 3px solid var(--green); } .time-card.quantum .val { color: var(--green); }
@@ -187,7 +196,6 @@ function updateStrength() {
   if (/[0-9]/.test(val)) score += 15;
   if (/[^a-zA-Z0-9]/.test(val)) score += 20;
 
-  // Штраф за русские буквы и клавиатурные паттерны
   if (/[а-яА-Я]/.test(val)) score -= 60;
   const keyboardRows = "1234567890qwertyuiopasdfghjklzxcvbnm";
   for (let i = 0; i < val.length - 2; i++) {
