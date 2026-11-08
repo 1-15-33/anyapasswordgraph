@@ -102,9 +102,17 @@ def human_time(seconds: float) -> str:
     if seconds < 3600: return f"{int(seconds / 60)} мин"
     if seconds < 86400: return f"{int(seconds / 3600)} ч"
     if seconds < 31_536_000: return f"{int(seconds / 86400)} дней"
+    
     years = seconds / 31_536_000
-    if years < 1000: return f"{int(years)} лет"
-    return f"{int(years / 100)} веков"
+    if years < 1000: 
+        return f"{int(years)} лет"
+    
+    centuries = years / 100
+    if centuries > 1_000_000_000:
+        return "> миллиарда веков"
+    if centuries > 1_000_000:
+        return f"{int(centuries / 1_000_000)} млн веков"
+    return f"{int(centuries)} веков"
 
 def human_factor(password: str) -> float:
     penalty = 0
@@ -167,25 +175,19 @@ def analyze(password: str) -> dict:
     times = {}
     
     for name, spd in SPEEDS.items():
-        # Если пароль человеческий — хакер использует словарную атаку.
-        # Это значит, что ему не нужно перебирать 62^22 комбинаций.
-        # Он берёт словарь из 50 000 слов, перебирает его, и находит.
         if h_penalty >= 50:
-            # Умный перебор (Dictionary Attack)
-            # Онлайн: 100 попыток/с -> 50 000 / 100 = 500 сек (~8 мин)
-            # Офлайн: 10^9 попыток/с -> 50 000 / 10^9 = 0.00005 сек
             effective_combinations = 50000
             t = effective_combinations / (2.0 * spd)
         elif h_penalty >= 30:
-            # Есть паттерны, но не русские
-            # Перебор ограничивается ~10 млн комбинаций
             effective_combinations = 10_000_000
             t = effective_combinations / (2.0 * spd)
         else:
-            # Чистый рандом -> честный полный перебор
             t = crack_time(password, spd)
             
         times[name] = t
-        times[f"{name}_human"] = human_time(t)
+        if t == float("inf") or t > 1e30:
+            times[f"{name}_human"] = "> миллиарда веков"
+        else:
+            times[f"{name}_human"] = human_time(t)
 
     return {"metrics": metrics, "times": times, "verdict": verdict(metrics, times, password)}
