@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnyaPasswordGraph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --card: #1a1a22; --border: #2a2a35; --border-hi: #0077FF;
+    --text: #ffffff; --text-secondary: #a1a1b0; --accent: #0077FF;
+    --accent-glow: rgba(0, 119, 255, 0.15); --green: #10b981; --amber: #f59e0b; --red: #ef4444;
+    --radius: 14px; --font-main: 'Inter', sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--font-main);
+    line-height: 1.5; -webkit-font-smoothing: antialiased; position: relative; overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; top: 0; left: 0; right: 0; height: 500px;
+    background: linear-gradient(180deg, rgba(0, 119, 255, 0.12) 0%, transparent 100%);
+    pointer-events: none; z-index: 0;
+  }
+  .glow {
+    position: fixed; width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 119, 255, 0.08) 0%, transparent 70%);
+    pointer-events: none; z-index: 0; transition: transform 0.3s ease-out;
+  }
+  .container { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 60px 20px 80px; }
+  .header { margin-bottom: 32px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); font-weight: 700; letter-spacing: -0.5px; margin-bottom: 8px; }
+  h1 span { background: linear-gradient(135deg, var(--accent), #6c8cff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .subtitle { color: var(--text-secondary); font-size: 15px; }
+  
+  .input-group {
+    display: flex; gap: 8px; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 6px; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .input-group:focus-within { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); }
+  .input-group input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: var(--font-mono); font-size: 15px; padding: 12px 16px;
+  }
+  .input-group input::placeholder { color: var(--text-secondary); }
+  button { font-family: var(--font-main); cursor: pointer; border: none; font-weight: 600; transition: all 0.2s; }
+  .icon-btn { background: transparent; color: var(--text-secondary); padding: 0 12px; border-radius: 10px; font-size: 16px; }
+  .icon-btn:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+  .primary-btn { background: var(--accent); color: white; padding: 10px 22px; border-radius: 10px; font-size: 14px; }
+  .primary-btn:hover { background: #0066dd; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0, 119, 255, 0.3); }
+  .primary-btn:disabled { opacity: 0.5; cursor: wait; transform: none; }
+
+  .strength-bar { height: 4px; background: var(--border); border-radius: 2px; margin: 8px 4px 4px; overflow: hidden; display: none; }
+  .strength-bar.active { display: block; }
+  .strength-fill { height: 100%; width: 0%; border-radius: 2px; transition: width 0.3s ease, background-color 0.3s ease; }
+  .strength-text { font-size: 12px; color: var(--text-secondary); text-align: right; padding-right: 4px; margin-bottom: 20px; display: none; }
+
+  .quick-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; animation: fadeIn 0.3s ease; }
+  .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; display: flex; justify-content: space-between; }
+  .stat-box .s-label { font-size: 13px; color: var(--text-secondary); }
+  .stat-box .s-val { font-family: var(--font-mono); font-size: 15px; font-weight: 600; color: var(--accent); }
+
+  .verdict { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 20px; font-size: 16px; line-height: 1.6; position: relative; overflow: hidden; }
+  .verdict::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .verdict.danger::before { background: var(--red); }
+  .verdict.warn::before { background: var(--amber); }
+  .verdict.ok::before { background: var(--green); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; animation: fadeIn 0.3s 0.05s ease both; }
+  .time-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 20px; text-align: center; position: relative; }
+  .time-card:hover { transform: translateY(-4px); border-color: var(--border-hi); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+  .time-card .icon { font-size: 24px; margin-bottom: 12px; display: block; }
+  .time-card .label { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500; }
+  .time-card .val { font-family: var(--font-mono); font-size: 20px; font-weight: 700; }
+  .time-card.online { border-top: 3px solid var(--red); } .time-card.online .val { color: var(--red); }
+  .time-card.offline { border-top: 3px solid var(--amber); } .time-card.offline .val { color: var(--amber); }
+  .time-card.quantum { border-top: 3px solid var(--green); } .time-card.quantum .val { color: var(--green); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; animation: fadeIn 0.3s 0.1s ease both; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; position: relative; overflow: hidden; }
+  .panel h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); margin-bottom: 18px; display: flex; justify-content: space-between; }
+  .panel h3 span { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; position: relative; z-index: 1; }
+  tr { border-bottom: 1px solid var(--border); }
+  tr:hover { background: rgba(255, 255, 255, 0.02); }
+  tr:last-child { border-bottom: none; }
+  td { padding: 10px 0; }
+  td:first-child { color: var(--text-secondary); }
+  td:last-child { text-align: right; font-family: var(--font-mono); font-weight: 500; color: var(--accent); }
+  canvas#radar { width: 100%; max-width: 320px; display: block; margin: 0 auto; position: relative; z-index: 1; }
+
+  .empty { text-align: center; color: var(--text-secondary); padding: 60px 0; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .empty-icon { width: 48px; height: 48px; border-radius: 50%; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  footer { margin-top: 60px; text-align: center; color: #2a2a35; font-size: 12px; user-select: none; }
+  footer:hover { color: var(--text-secondary); }
+  footer span { display: block; margin-top: 4px; font-size: 10px; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<div class="glow" id="glow"></div>
+
+<div class="container">
+  <div class="header">
+    <h1>Anya<span>Password</span>Graph</h1>
+    <div class="subtitle">10 формул · 3 сценария взлома · локальный анализ</div>
+  </div>
+
+  <div class="input-group">
+    <input id="pwd" type="password" placeholder="Введите пароль..." autocomplete="off">
+    <button class="icon-btn" id="genBtn" title="Сгенерировать сложный пароль">🎲</button>
+    <button class="icon-btn" id="showBtn" title="Показать">👁</button>
+    <button class="primary-btn" id="checkBtn">Проверить</button>
+  </div>
+
+  <div class="strength-bar" id="strengthBar"><div class="strength-fill" id="strengthFill"></div></div>
+  <div class="strength-text" id="strengthText"></div>
+
+  <div class="quick-stats" id="quickStats" style="display:none">
+    <div class="stat-box"><span class="s-label">Длина</span><span class="s-val" id="s-len">0</span></div>
+    <div class="stat-box"><span class="s-label">Энтропия</span><span class="s-val" id="s-ent">0</span></div>
+    <div class="stat-box"><span class="s-label">Классы</span><span class="s-val" id="s-class">0</span></div>
+  </div>
+
+  <div id="verdict" class="verdict" style="display:none"></div>
+
+  <div id="times" class="times" style="display:none">
+    <div class="time-card online"><span class="icon">🌐</span><div class="label">Онлайн / 100 попыток/с</div><div class="val" id="t-online">—</div></div>
+    <div class="time-card offline"><span class="icon">💻</span><div class="label">Офлайн / 10⁹ попыток/с</div><div class="val" id="t-offline">—</div></div>
+    <div class="time-card quantum"><span class="icon">⚛️</span><div class="label">Квантовый / 10¹² попыток/с</div><div class="val" id="t-quantum">—</div></div>
+  </div>
+
+  <div class="grid" id="result" style="display:none">
+    <div class="panel">
+      <h3>Метрики <span>10 формул</span></h3>
+      <table id="metrics"></table>
+    </div>
+    <div class="panel">
+      <h3>Радар хаоса <span>10 осей</span></h3>
+      <canvas id="radar" width="320" height="320"></canvas>
+    </div>
+  </div>
+
+  <div class="empty" id="empty">
+    <div class="empty-icon">🔐</div>
+    <div>Введите пароль, чтобы увидеть сценарии и метрики</div>
+  </div>
+
+  <footer>AnyaPasswordGraph <span>в честь Сосницкой Анны Андреевны</span></footer>
+</div>
+
+<script>
+const pwd = document.getElementById('pwd');
+const glow = document.getElementById('glow');
+const strengthBar = document.getElementById('strengthBar');
+const strengthFill = document.getElementById('strengthFill');
+const strengthText = document.getElementById('strengthText');
+
+document.addEventListener('mousemove', (e) => {
+  glow.style.transform = `translate(${e.clientX - 300}px, ${e.clientY - 300}px)`;
+});
+
+document.getElementById('genBtn').onclick = () => {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+  let pass = '';
+  for (let i = 0; i < 16; i++) pass += chars[Math.floor(Math.random() * chars.length)];
+  pwd.value = pass; pwd.type = 'text'; updateStrength();
+};
+document.getElementById('showBtn').onclick = () => { pwd.type = pwd.type === 'password' ? 'text' : 'password'; };
+pwd.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('checkBtn').click(); });
+
+function updateStrength() {
+  const val = pwd.value;
+  if (!val) { strengthBar.classList.remove('active'); strengthText.style.display = 'none'; return; }
+  strengthBar.classList.add('active'); strengthText.style.display = 'block';
+  
+  let score = 0;
+  if (val.length >= 8) score += 25;
+  if (val.length >= 12) score += 15;
+  if (/[a-z]/.test(val)) score += 10;
+  if (/[A-Z]/.test(val)) score += 15;
+  if (/[0-9]/.test(val)) score += 15;
+  if (/[^a-zA-Z0-9]/.test(val)) score += 20;
+
+  // Штраф за русские буквы и клавиатурные паттерны
+  if (/[а-яА-Я]/.test(val)) score -= 60;
+  const keyboardRows = "1234567890qwertyuiopasdfghjklzxcvbnm";
+  for (let i = 0; i < val.length - 2; i++) {
+      if (keyboardRows.includes(val.slice(i, i+3).toLowerCase())) {
+          score -= 30;
+          break;
+      }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  strengthFill.style.width = score + '%';
+  
+  if (score < 40) { 
+      strengthFill.style.backgroundColor = 'var(--red)'; 
+      strengthText.textContent = 'Слабый'; 
+      strengthText.style.color = 'var(--red)'; 
+  }
+  else if (score < 70) { 
+      strengthFill.style.backgroundColor = 'var(--amber)'; 
+      strengthText.textContent = 'Средний'; 
+      strengthText.style.color = 'var(--amber)'; 
+  }
+  else { 
+      strengthFill.style.backgroundColor = 'var(--green)'; 
+      strengthText.textContent = 'Надёжный'; 
+      strengthText.style.color = 'var(--green)'; 
+  }
+}
+pwd.addEventListener('input', updateStrength);
+
+const LABELS = {
+  shannon_entropy: "Энтропия (хаос)",
+  combinations: "Комбинаций",
+  index_of_coincidence: "Индекс совпадений",
+  jaccard_bigrams: "Жаккар биграмм",
+  weak_word_similarity: "Сходство со слабым",
+  chunk_length_cv: "CV чанков",
+  type_token_ratio: "TTR (разнообразие)",
+  special_digit_ratio: "Спец + цифры",
+  normalized_entropy: "Норм. энтропия"
+};
+
+const RADAR_AXES = [
+  {key:'shannon_entropy', max:5, label:'H'},
+  {key:'normalized_entropy', max:1, label:'H/logN'},
+  {key:'type_token_ratio', max:1, label:'TTR'},
+  {key:'index_of_coincidence', max:0.3, label:'IC'},
+  {key:'jaccard_bigrams', max:1, label:'J'},
+  {key:'weak_word_similarity', max:1, label:'Weak'},
+  {key:'chunk_length_cv', max:1.5, label:'CV'},
+  {key:'special_digit_ratio', max:1, label:'Spec'},
+  {key:'alphabet_size', max:95, label:'N'},
+  {key:'length', max:32, label:'L'}
+];
+
+document.getElementById('checkBtn').onclick = async () => {
+  const password = pwd.value;
+  if (!password) return;
+  const checkBtn = document.getElementById('checkBtn');
+  checkBtn.disabled = true; checkBtn.textContent = 'Анализ...';
+
+  try {
+    const res = await fetch('/analyze', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({password})
+    });
+    if (!res.ok) { alert('Ошибка сервера'); return; }
+    const data = await res.json();
+
+    document.getElementById('s-len').textContent = password.length;
+    document.getElementById('s-ent').textContent = data.metrics.shannon_entropy.toFixed(2);
+    let classes = 0;
+    if (/[a-z]/.test(password)) classes++;
+    if (/[A-Z]/.test(password)) classes++;
+    if (/[0-9]/.test(password)) classes++;
+    if (/[^a-zA-Z0-9]/.test(password)) classes++;
+    document.getElementById('s-class').textContent = classes;
+    document.getElementById('quickStats').style.display = 'grid';
+
+    const verdictEl = document.getElementById('verdict');
+    verdictEl.textContent = data.verdict;
+    verdictEl.className = 'verdict';
+    const off = data.times.offline_human;
+    if (off.includes('мгновенно') || off.includes('сек')) verdictEl.classList.add('danger');
+    else if (off.includes('мин') || off.includes(' ч')) verdictEl.classList.add('warn');
+    else verdictEl.classList.add('ok');
+    verdictEl.style.display = 'block';
+
+    document.getElementById('t-online').textContent = data.times.online_human;
+    document.getElementById('t-offline').textContent = data.times.offline_human;
+    document.getElementById('t-quantum').textContent = data.times.quantum_human;
+    document.getElementById('times').style.display = 'grid';
+
+    let html = '';
+    for (const [k, label] of Object.entries(LABELS)) {
+      const v = data.metrics[k];
+      const shown = (typeof v === 'number' && v > 1e6) ? v.toExponential(2) : v;
+      html += `<tr><td>${label}</td><td>${shown}</td></tr>`;
+    }
+    document.getElementById('metrics').innerHTML = html;
+
+    document.getElementById('empty').style.display = 'none';
+    document.getElementById('result').style.display = 'grid';
+
+    drawRadar(data.metrics);
+  } finally {
+    checkBtn.disabled = false; checkBtn.textContent = 'Проверить';
+  }
+};
+
+function drawRadar(m) {
+  const cv = document.getElementById('radar'); const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height, cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 38;
+  const n = RADAR_AXES.length; ctx.clearRect(0, 0, W, H);
+  for (let ring = 1; ring <= 4; ring++) {
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI/2 + i * 2*Math.PI/n, r = R * ring/4;
+      const x = cx + Math.cos(a)*r, y = cy + Math.sin(a)*r;
+      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.closePath(); ctx.strokeStyle = '#2a2a35'; ctx.lineWidth = 1; ctx.stroke();
+  }
+  ctx.font = '10px "Inter", sans-serif'; ctx.fillStyle = '#a1a1b0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI/2 + i * 2*Math.PI/n, x = cx + Math.cos(a)*R, y = cy + Math.sin(a)*R;
+    ctx.beginPath(); ctx.strokeStyle = '#2a2a35'; ctx.moveTo(cx, cy); ctx.lineTo(x, y); ctx.stroke();
+    ctx.fillText(RADAR_AXES[i].label, cx + Math.cos(a)*(R+18), cy + Math.sin(a)*(R+18));
+  }
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+  grad.addColorStop(0, 'rgba(0, 119, 255, 0.3)'); grad.addColorStop(1, 'rgba(108, 140, 255, 0.1)');
+  ctx.beginPath();
+  for (let i = 0; i < n; i++) {
+    const ax = RADAR_AXES[i];
+    let val = Math.max(0, Math.min(1, m[ax.key] / ax.max));
+    const a = -Math.PI/2 + i * 2*Math.PI/n, x = cx + Math.cos(a)*R*val, y = cy + Math.sin(a)*R*val;
+    i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill(); ctx.strokeStyle = '#0077FF'; ctx.lineWidth = 2; ctx.stroke();
+  for (let i = 0; i < n; i++) {
+    const ax = RADAR_AXES[i];
+    let val = Math.max(0, Math.min(1, m[ax.key] / ax.max));
+    const a = -Math.PI/2 + i * 2*Math.PI/n, x = cx + Math.cos(a)*R*val, y = cy + Math.sin(a)*R*val;
+    ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2); ctx.fillStyle = '#fff'; ctx.fill();
+  }
+}
+</script>
+</body>
+</html>
